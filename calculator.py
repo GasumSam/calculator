@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 
-dbuttons = [
+normal_buttons = [
     {
         'text': '1',
         'col': 0,
@@ -96,6 +96,77 @@ dbuttons = [
     }
 ]
 
+roman_buttons = [
+ {
+        'text': '=',
+        'col': 0,
+        'row': 5,
+        'W': 4
+    },
+    {
+        'text': 'I',
+        'col': 0,
+        'row': 5
+    },
+    {
+        'text': 'V',
+        'col': 1,
+        'row': 5
+    },
+    {
+        'text': 'X',
+        'col': 0,
+        'row': 3
+    },
+    {
+        'text': 'L',
+        'col': 1,
+        'row': 2
+    },
+    {
+        'text': 'C',
+        'col': 0,
+        'row': 2
+    },
+    {
+        'text': 'D',
+        'col': 1,
+        'row': 2
+    },    
+    {
+        'text': 'M',
+        'col': 2,
+        'row': 2,
+        'W': 3
+    },
+    {
+        'text': 'AC',
+        'col': 1,
+        'row': 1,
+        'W': 2
+    },
+    {
+        'text': '÷',
+        'col': 3,
+        'row': 1
+    },
+    {
+        'text': 'x',
+        'col': 3,
+        'row': 2
+    },
+    {
+        'text': '-',
+        'col': 3,
+        'row': 3
+    },
+    {
+        'text': '+',
+        'col': 3,
+        'row': 4
+    }
+]
+
 def pinta(cls, valor):
     print(valor)
     return valor
@@ -106,8 +177,11 @@ class Controlator(ttk.Frame):
         self.reset() #Evitamos crear los cuatro atributos 18 veces, una para cada botón. Ahora invocamos self.reset() cada vez
 
         self.display = Display(self)
-        self.display.grid(column=0, row=0, columnspan=4)
+        self.display.grid(column=0, row=0)
 
+        self.keyboard = Keyboard(self, 'R')
+        self.keyboard.grid(column=0, row=1)
+        
         for properties in dbuttons:
             btn = CalcButton(self, properties['text'], self.set_operation, properties.get('W', 1), properties.get('H', 1))  #Self heredado es ttk.Frame(padre), #De CalcButton: (self, parent, value, command, width=1, heigth=1)
             btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))  
@@ -215,13 +289,65 @@ class Selector(ttk.Frame):
     def __init__(self, parent, status='N'):
         ttk.Frame.__init__(self, parent, width = 68, height = 50)
         self.status = status
+        self.__value = StringVar()  #Asignamos variable de control a self.value
+        self.__value.set(self.status)  #inicializo la variable self.value con el valor de self.status tras crear la variable de control StringVar
 
-        radiob1 = ttk.Radiobutton(self, text='N', value='N', name='rbtn_normal', variable = self.status)
+        radiob1 = ttk.Radiobutton(self, text='N', value='N', name='rbtn_normal', variable = self.__value, command=self.__click)
         radiob1.place(x=0, y=5)
-        #radiob1.pack(side=TOP, fill=BOTH, expand=True)
-        radiob2 = ttk.Radiobutton(self, text='R', value='R', name='rbtn_romano', variable = self.status)
+        radiob2 = ttk.Radiobutton(self, text='R', value='R', name='rbtn_romano', variable = self.__value, command=self.__click)
         radiob2.place(x=0, y=30)
-        #radiob2.pack(side=TOP, fill=BOTH, expand=True)
+
+    def click(self):
+        self.status = self.__value.get() 
+
+class Keyboard(ttk.Frame):
+    def __init__(self, parent, status='N'): 
+        ttk.Frame.__init__(self, parent, height=250, width=272)
+        self.__status = status
+        self.listaBRomanos = []
+        self.listaBNormales = []
+
+        if self.__status == 'N':
+            self.pintaNormal()
+        else:
+            self.pintaRomano()
+
+    @property               #Transforma status (Atributo), en un atributo con personalidad
+    def status(self):
+        return self.__status
+    
+    @status.setter
+    def status(self, valor):   #Actúa como SETTER, un método que permite asignar un valor a la clase
+        self.__status = valor
+        if valor == 'N':
+            self.pintaNormal()
+        else:
+            self.pintaRomano()
+
+    def pintaNormal(self):
+        if len(self.listaBNormales) == 0:
+            for properties in normal_buttons:  
+                btn = CalcButton(self, properties['text'], None, properties.get('W', 1), properties.get('H', 1))  #Self heredado es ttk.Frame(padre), #De CalcButton: (self, parent, value, command, width=1, heigth=1)
+                self.listaBNormales.append((btn, properties))
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))   
+        else:
+            for btn, properties in self.listaBNormales:
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1)) 
+        for borra, properties in self.listaBNormales:
+            borra.grid_forget()
+
+    def pintaRomano(self):
+        if len(self.listaBRomanos) == 0:
+            for properties in roman_buttons:  #Heredamos de COntrolator
+                btn = CalcButton(self, properties['text'], None, properties.get('W', 1), properties.get('H', 1))
+                self.listaBNormales.append((btn, properties))
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))  
+        else:
+            for btn, properties in self.listaBRomanos:
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))
+
+        for borra in self.listaBRomanos: #es lo mismo que arriba, pero para poder olvidar la tupla, si no especificamos ambos elementos, especificamos abajo borrar el elemento 002
+            borra[0].grid_forget()
 
 class CalcButton(ttk.Frame):
     def __init__(self, parent, value, command, width=1, heigth=1):
@@ -230,16 +356,6 @@ class CalcButton(ttk.Frame):
 
         btn = ttk.Button(self, text=value, command=lambda: command(value))    #creamos la instancia Button   #el valor del texto es value, heredado del __init__
         btn.pack(side=TOP, fill=BOTH, expand=True)  #Empaquetate arriba, rellena ambas dimensiones y expándete
-
-'''
-#Explicación de por qué no se utiliza self.value en la llamada al valor del  texto del boton:
-
-class Persona():
-    def __init__(self, nombre, apellidos, fecha_nac): # En el __init__ se hace la llamada a las variables locales
-        self.nombre = nombre
-        self.apellidos = apellidos  #Seguidamente se convierten las variables locales/parámetros en atributos propias de la función 
-        self.fecha_nac = fecha_nac
-'''
 
 
 
