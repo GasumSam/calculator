@@ -175,16 +175,17 @@ class Controlator(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent, width=272, height=300)  #(self, parent, width=272, height=300) Podemos eliminar las medidas, ya que hemos especificado en MainApp fill=BOTH
         self.reset() #Evitamos crear los cuatro atributos 18 veces, una para cada botón. Ahora invocamos self.reset() cada vez
+        self.status = "N"
 
         self.display = Display(self)
         self.display.grid(column=0, row=0)
 
-        self.keyboard = Keyboard(self, 'R')
+        self.keyboard = Keyboard(self, self.set_operation, self.status)   #Inyección de dependencias....asignando una función para teclado, en este caso set_operation
         self.keyboard.grid(column=0, row=1)
         
-        for properties in dbuttons:
-            btn = CalcButton(self, properties['text'], self.set_operation, properties.get('W', 1), properties.get('H', 1))  #Self heredado es ttk.Frame(padre), #De CalcButton: (self, parent, value, command, width=1, heigth=1)
-            btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))  
+        self.selector = Selector(self.keyboard, self.change_status, self.status)
+        self.selector.grid(column=0, row=1)
+
 
     def reset(self): #Generamos la función para que sea invocada y no tener que poner los cuatro atributos 18 veces
         self.op1 = None        # 0 PUede ser un valor ambíguo, por lo que probamos NADA...PONEMOS EL OPERADOR A VACÍO
@@ -199,11 +200,6 @@ class Controlator(ttk.Frame):
     def to_str(self, valor):
         return str(valor).replace('.', ',')
 
-        #@classmethod
-        #def pinta(cls, valor):
-         #   print(valor)
-          #  return valor
-
     def calculate(self):
         if self.operation == '+':
             return self.op1 + self.op2
@@ -216,64 +212,77 @@ class Controlator(ttk.Frame):
 
         return self.op2
 
-    def set_operation(self, algo):
-        if algo.isdigit():  # permite ir dibujando los números en el display y que se acumulen
-            if self.dispValue == '0' or self.signo_recien_pulsado:
+    def set_operation(self, algo):    #Es un set_operation para la calculadora normal
+        if self.status == 'R':  # permite ir dibujando los números en el display y que se acumulen
+            self.set_operation_R(algo)
+        else:
+            self.set_operation_N(algo)
+            
+        self.display.paint(self.dispValue)
+    
+    def set_operation_R(self, algo):
+        print("En desarrollo")
+
+    def set_operation_N(self, algo):
+        if algo.isdigit(): #Comprobar si algo esta en (IVXLCDM) y comprobar si el número romano está bien formateado. Cambiar dispValue
+            if self.dispValue == "0" or self.signo_recien_pulsado:
                 self.op1 = self.to_float(self.dispValue)
                 self.op2 = None
                 self.dispValue = algo
-            else:            
-                self.dispValue += str(algo) #Acumulamos el valor en el display cada vez que pulsamos una tecla
+            else:
+                self.dispValue += str(algo)
+        
+        if algo == 'C': #y es arábigo si no sera 'AC'
+            self.reset()
 
-        if algo == 'C':
-            self.reset() #Ahorramos poner los cuatro atributos 18 veces invocando a la función que ya los contempla
-
-        if algo == '+/-' and self.dispValue != '0':
+        if algo == '+/-' and self.dispValue != '0': #No funciona en romano
             if self.dispValue[0] == '-':
                 self.dispValue = self.dispValue[1:]
             else:
                 self.dispValue = '-' + self.dispValue
 
-        if algo == ',' and not ',' in self.dispValue:
+        if algo == ',' and ',' not in self.dispValue: #No funciona en romano
             self.dispValue += str(algo)
 
-        if algo == '+' or algo == '-' or algo == 'x' or algo == '÷':
-            if self.op1 == None:
-                self.op1 = self.to_float(self.dispValue)
-                self.operation = algo 
-            elif self.op2 == None:
-                self.op2 = self.to_float(self.dispValue)
+        if algo == '+' or algo == '-' or algo =='x' or algo =='÷':
+            if not self.op1:
+                self.op1 = self.to_float(self.dispValue) #pasar a RomanNumber si status es R
+                self.operation = algo
+            elif not self.op2:
+                self.op2 = self.to_float(self.dispValue) #pasar a RomanNumber si status es R
                 res = self.calculate()
                 self.dispValue = self.to_str(res)
-                self.operation = algo 
-            else:
-                self.op1 = self.to_float(self.dispValue)
+                self.operation = algo
+            else: 
+                self.op1 = self.to_float(self.dispValue) #pasar a RomanNumber si status es R
                 self.op2 = None
                 self.operation = algo
-            self.signo_recien_pulsado = True 
+            self.signo_recien_pulsado = True
         else:
-            self.signo_recien_pulsado = False 
+            self.signo_recien_pulsado = False
 
         if algo == '=':
-            if self.op1 != None and self.op2 == None:
+            if self.op1 and not self.op2:
                 self.op2 = self.to_float(self.dispValue)
                 res = self.calculate()
                 self.dispValue = self.to_str(res)
 
-            elif self.op1 != None and self.op2 != None:
+            elif self.op1 and self.op2:
                 self.op1 = self.to_float(self.dispValue)
                 res = self.calculate()
                 self.dispValue = self.to_str(res)
 
-        self.display.paint(self.dispValue)
+    def change_status(self, status):
+        self.status = status
+        self.keyboard.status = status
+        self.reset()
 
 class Display(ttk.Frame):
+    value = '0'
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent, width=272, height=50)
         self.pack_propagate(0)
     
-        self.value = '0' #Podemos situar value (sin self.) fuera de la función init (en la línea 120, por ejemplo)
-
         s = ttk.Style()  #Crea una instancia de un estilo
         s.theme_use('alt')
         s.configure('my.TLabel', font='Helvetica 36', background='black', foreground='white')
@@ -291,6 +300,7 @@ class Selector(ttk.Frame):
         self.status = status
         self.__value = StringVar()  #Asignamos variable de control a self.value
         self.__value.set(self.status)  #inicializo la variable self.value con el valor de self.status tras crear la variable de control StringVar
+        self.command = command  
 
         radiob1 = ttk.Radiobutton(self, text='N', value='N', name='rbtn_normal', variable = self.__value, command=self.__click)
         radiob1.place(x=0, y=5)
@@ -299,13 +309,15 @@ class Selector(ttk.Frame):
 
     def click(self):
         self.status = self.__value.get() 
+        self.command(self.status)
 
 class Keyboard(ttk.Frame):
-    def __init__(self, parent, status='N'): 
+    def __init__(self, parent, command, status='N'): 
         ttk.Frame.__init__(self, parent, height=250, width=272)
         self.__status = status
         self.listaBRomanos = []
         self.listaBNormales = []
+        self.command = command
 
         if self.__status == 'N':
             self.pintaNormal()
@@ -326,28 +338,29 @@ class Keyboard(ttk.Frame):
 
     def pintaNormal(self):
         if len(self.listaBNormales) == 0:
-            for properties in normal_buttons:  
-                btn = CalcButton(self, properties['text'], None, properties.get('W', 1), properties.get('H', 1))  #Self heredado es ttk.Frame(padre), #De CalcButton: (self, parent, value, command, width=1, heigth=1)
+            for properties in normal_buttons:
+                btn = CalcButton(self, properties['text'], self.command, properties.get("W", 1), properties.get("H", 1))
                 self.listaBNormales.append((btn, properties))
-                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))   
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get("W", 1), rowspan=properties.get("H", 1))
         else:
-            for btn, properties in self.listaBNormales:
-                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1)) 
-        for borra, properties in self.listaBNormales:
+            for btn, properties in self.listaBNormales: 
+                 btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get("W", 1), rowspan=properties.get("H", 1))
+
+        for borra, properties in self.listaBRomanos:
             borra.grid_forget()
 
     def pintaRomano(self):
         if len(self.listaBRomanos) == 0:
-            for properties in roman_buttons:  #Heredamos de COntrolator
-                btn = CalcButton(self, properties['text'], None, properties.get('W', 1), properties.get('H', 1))
-                self.listaBNormales.append((btn, properties))
-                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))  
+            for properties in roman_buttons:
+                btn = CalcButton(self, properties['text'], self.command, properties.get("W", 1), properties.get("H", 1))
+                self.listaBRomanos.append((btn, properties))
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get("W", 1), rowspan=properties.get("H", 1))
         else:
             for btn, properties in self.listaBRomanos:
-                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get('W', 1), rowspan=properties.get('H', 1))
+                btn.grid(column=properties['col'], row=properties['row'], columnspan=properties.get("W", 1), rowspan=properties.get("H", 1))
 
-        for borra in self.listaBRomanos: #es lo mismo que arriba, pero para poder olvidar la tupla, si no especificamos ambos elementos, especificamos abajo borrar el elemento 002
-            borra[0].grid_forget()
+        for borra, properties in self.listaBNormales:
+            borra.grid_forget()
 
 class CalcButton(ttk.Frame):
     def __init__(self, parent, value, command, width=1, heigth=1):
